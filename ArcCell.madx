@@ -1,0 +1,104 @@
+call file = RCS_imag_periodic.lat;
+ke:=16.0;
+etotal:= ke + pmass;
+BEAM, PARTICLE=proton,ENERGY=etotal;
+beta=sqrt(1-1/(beam->gamma^2)); ! <== just a very heavy-handed way of getting beta == p/E
+etax  := beta*table(twiss,dx);
+detax := beta*table(twiss, dpx);
+DEL=0.01;
+
+use, period=icell_a;
+!savebeta, label= start,place=#S;
+select, flag=twiss,column=name,s,betx,alfx,mux,etax,detax,bety,alfy,muy,dx;
+twiss,file=twiss.out;
+
+!*****start the match with established start twiss functions***
+!*****refit all functions and strengths to match constraints***
+betaxs: =table(twiss,ICELL_A$START,BETX);
+betays: =table(twiss,ICELL_A$START,BETY);
+dxs   : =table(twiss,ICELL_A$START,DX);
+
+
+
+
+
+use,sequence=icell_a;
+match, sequence=icell_a;
+vary, name=QFF2_A->k1,step=.001,lower=0,upper=1.5;
+vary, name=QDD2_A->k1,step=.001,lower=-1.5,upper=0;
+vary, name=QF2_A->k1,step=.001,lower=0,upper=1.5;
+vary, name=QD2_A->k1,step=.001,lower=-1.5,upper=0;
+CONSTRAINT, range=NEG, DX<-2;
+CONSTRAINT, range=#S/NEG, betx<25;
+CONSTRAINT, range=NEG, bety<30;
+CONSTRAINT, range=#e, mux=8.4/12,muy=7.7/12;
+LMDIF, calls=10000, tolerance=1E-08;
+endmatch;
+
+use, sequence=icell_a;
+select, flag=twiss,column=name,s,betx,alfx,mux,etax,detax,bety,alfy,muy,dx;
+twiss, file=twiss.out;
+
+match, sequence=icell_a;
+vary, name=sfk2,step=0.001,upper=14;
+vary, name=sdk2,step=0.0001,lower=-14;
+GLOBAL, SEQUENCE= icell_a,DQ2=0,DQ1=0;
+LMDIF, calls=10000, tolerance=1E-011;
+endmatch;
+
+
+
+use, period=icell_b;
+select, flag=twiss,column=name,s,betx,alfx,mux,etax,detax,bety,alfy,muy,dx;
+twiss;
+plot,table=twiss ,interpolate,colour=100,haxis=s,vaxis1=betx,bety,vaxis2=etax;
+
+use, period=icell_a;
+select, flag=twiss,column=name,s,betx,alfx,mux,etax,detax,bety,alfy,muy,dx;
+plot,table=twiss,colour=100, haxis=s,vaxis1=betx,bety,vaxis2=etax,HMAX=45.5;
+
+
+use, sequence=RCS;
+twiss;
+plot,table=twiss,colour=100, haxis=s,vaxis1=betx,bety,vaxis2=etax,HMAX=41*3;
+
+
+
+!=== Begin Particle Tracking Section ===!
+use, sequence=icell_a;
+twiss, file=twiss.out;
+!stop;
+Sigmax :=   sqrt(betax*18/(0.998 * 1.806)*1E-6);
+Sigmay :=   sqrt(betay*18/(0.998 * 1.806)*1E-6);
+BETAX  = table(twiss,icell_a$START,BETX );
+ALPHAX  = table(twiss,icell_a$START,ALFX );
+BETAY = table(twiss,icell_a$START,BETY);
+ALPHAY  = table(twiss,icell_a$START,ALFY);
+
+nprotons : =1;
+n: = 1 ;
+ptc_create_universe;
+ptc_create_layout;
+while(n <= 3) {
+   radiusx   = sigmax*2*n ;
+   anglex    = twopi/nprotons * (n-1) ;
+   xs      : = radiusx * cos(anglex) ;
+   pxs     : = radiusx * sin(anglex) ;
+   radiusy   = sigmay*2*n ; 
+   angley    = twopi/nprotons * (n-1) ;
+   ys      : = radiusy * cos(angley) ;
+   pys     : = radiusy * sin(angley) ;
+ptc_start, x=xs, px=PXS, y=ys, py=pys;
+n  = n+1;5
+};
+ptc_track,ICASE=5,dump,onetable,turns=30000,ffile=1,element_by_element=false, maxaper={1,1,1,1,10,1};
+ptc_track_end;
+ptc_end;
+!=== End Particle Tracking Section ===!
+plot,table=track,haxis=x,vaxis=px,
+particle=1,2,3 colour=1000, multiple, symbol=3,table = trackone;
+
+plot,table=track,haxis=y,vaxis=py,
+particle=1,2,3, colour=1000,multiple, symbol=3, table = trackone;
+stop;
+

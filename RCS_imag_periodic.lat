@@ -1,0 +1,70 @@
+!***Periodic cell for imaginary gammat RCS********************
+
+
+!************CELL MOD*****************************************
+
+DM       : drift, l=0.25;
+ANG      : =2*pi/(14*4);
+D_A      : drift, l=3.0;
+SLength:=2.5;
+RLength:=(2*SLength/ANG)*sin(ANG/2);
+
+B2       :  rbend, l = 2.5, angle = ANG;
+B21      :  rbend, l = RLength, angle = ANG;
+
+B2_half    :  rbend, l=1., angle =ANG*1.;
+
+B2_drift       :  drift, l = 2.;
+B2_hlfdrift    :  drift, l = .5;
+
+
+QF2_A      : quadrupole, l=.25*2, k1 =   2.700222E-01;
+QD2_A      : quadrupole, l=.25*2, k1 =  -3.875504E-01;
+QFF2_A     : quadrupole, l=.25*2, k1 =   9.814463E-01;
+QDD2_A     : quadrupole, l=0.25, k1 =   -1.481307E-0;
+
+
+sfk2:=0;
+sdk2:=-5.60771e-001;
+SF: sextupole, l=0.25,k2:=sfk2;
+SD: sextupole, l=0.25, k2:=sdk2;
+
+
+LB : MARKER; ! Low beta marker
+NEG: MARKER;  !neg dispersion max
+LBD:  Drift, l=5;
+
+BNDSEC  :  line = (B2,B2,DM,QF2_A,DM,B2,DM,QD2_A,DM, SD,B2_drift,B2_hlfdrift,B2_hlfdrift,SD,D_A);
+HLFSTRT  :  line = (DM,QFF2_A,SF,QDD2_A,LBD,LB);
+
+
+hlf_icell   : line = (bndsec,hlfstrt);
+icell_a    :  line = (-hlf_icell,NEG,hlf_icell);
+icell_b    : line = (hlf_icell,NEG,-hlf_icell);
+
+RCS : line = (12*icell_b);
+!***************************************
+!FODO CELLS
+
+tune=95.5;
+
+
+QDT1: quadrupole,l=0.5, k1 =-2.08589e-001;
+
+QFT1: quadrupole,l=0.5, k1 =   1.98200e-001;
+QFT2: quadrupole,l=0.5, k1 =   2.8e-001;
+
+
+SF2: sextupole, L=0.25, k2:=1.2;
+SD2: sextupole, L=0.25, k2:=-1.2;
+
+o: drift, l=1;
+half_o: drift, l=0.5;
+
+INCELL : line=(QDT1,DM,SD2,DM,DM,4*o,QFT2,DM,SF2,DM,QFT2,4*o,DM,DM,SD2,DM,QDT1);
+OUTCELL: line=(QDT1,o,half_o,B2,half_o,o,QFT1,DM,DM,DM,QFT1,o,half_o,B2,half_o,o,QDT1);
+
+STRCELL: line = (OUTCELL,INCELL,-OUTCELL);
+STRRING: line=(14*STRCELL);
+
+

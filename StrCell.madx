@@ -1,0 +1,78 @@
+call file = RCS_imag_periodic.lat;
+ke:=16.0;
+etotal:= ke + pmass;
+BEAM, PARTICLE=proton,ENERGY=etotal;
+beta=sqrt(1-1/(beam->gamma^2)); ! <== just a very heavy-handed way of getting beta == p/E
+etax  := beta*table(twiss,dx);
+detax := beta*table(twiss, dpx);
+
+DEL=-0.01;
+
+use, period=STRCELL;
+select, flag=twiss,column=name,s,betx,alfx,mux,etax,detax,bety,alfy,muy,dx;
+twiss,file=twiss.out;
+
+
+use,sequence=STRCELL;
+match, sequence=STRCELL;
+vary, name=QFT1->k1,step=.001,lower=0,upper=1.5;
+vary, name=QDT1->k1,step=.001,lower=-1.5,upper=0;
+CONSTRAINT, range=#e, mux=(tune/360)*3,muy=(tune/360)*3;
+LMDIF, calls=10000, tolerance=1E-012;
+endmatch;
+
+match, sequence=STRCELL;
+vary, name=sf2->k2;
+vary, name=sd2->k2;
+GLOBAL, Sequence=strcell,DQ1=0,DQ2=0;
+LMDIF, calls=1000,tolerance=1E-13;
+endmatch;
+
+use, sequence=Strcell;
+select, flag=twiss,column=name,s,betx,alfx,mux,etax,detax,bety,alfy,muy,dx;
+twiss, file=twiss.out;
+plot,table=twiss,colour=100, haxis=s,vaxis1=betx,bety,vaxis2=etax;
+
+
+use, period=STRRING;
+select, flag=twiss,column=name,s,betx,alfx,mux,etax,detax,bety,alfy,muy,dx;
+twiss, file=twiss.out;
+plot,table=twiss,colour=100, haxis=s,vaxis1=betx,bety,vaxis2=etax;
+
+!stop;
+!=== Begin Particle Tracking Section ===!
+
+Sigmax :=   sqrt(betax*16/(0.998 * 1.806)*1E-6);
+Sigmay :=   sqrt(betay*16/(0.998 * 1.806)*1E-6);
+BETAX  = table(twiss,STRRING$START,BETX );
+ALPHAX  = table(twiss,STRRING$START,ALFX );
+BETAY = table(twiss,STRRING$START,BETY);
+ALPHAY  = table(twiss,STRRING$START,ALFY);
+
+nprotons : =1;
+n: = 1 ;
+ptc_create_universe;
+ptc_create_layout;
+while(n <= 3) {
+   radiusx   = sigmax*3*n ;
+   anglex    = twopi/nprotons * (n-1) ;
+   xs      : = radiusx * cos(anglex) ;
+   pxs     : = radiusx * sin(anglex) ;
+   radiusy   = sigmay*3*n; 
+   angley    = twopi/nprotons * (n-1) ;
+   ys      : = radiusy * cos(angley) ;
+   pys     : = radiusy * sin(angley) ;
+ptc_start, x=xs, px=pxs, y=ys, py=pys;
+n  = n+1;
+};
+ptc_track,ICASE=5,dump,onetable,turns=20000,ffile=1,element_by_element=false, maxaper={1,1,1,1,10,1},DELTAP=DEL;
+ptc_track_end;
+ptc_end;
+!=== End Particle Tracking Section ===!
+plot,table=track,haxis=x,vaxis=px,
+particle=1,2,3 colour=1000, multiple, symbol=3,table = trackone;
+
+plot,table=track,haxis=y,vaxis=py,
+particle=1,2,3, colour=1000,multiple, symbol=3, table = trackone;
+stop;
+
